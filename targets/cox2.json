@@ -1,0 +1,68 @@
+{
+  "name": "cox2",
+  "description": "Human cyclooxygenase-2 (PTGS2). BENCHMARK, not the research subject.",
+  "targets": {
+    "P35354": "COX-2"
+  },
+  "target_type": "SINGLE PROTEIN",
+  "_targets_note": "UniProt accessions -> short labels. Accessions are stable across ChEMBL releases; ChEMBL target IDs are not, so never hardcode those. Find yours at uniprot.org. The label becomes the output filename, so keep it short and filesystem-safe. Two accessions here means two datasets built side by side (e.g. an isoform pair). target_type is 'SINGLE PROTEIN' for a protein and 'ORGANISM' for a whole-organism MIC endpoint.",
+  "endpoint": {
+    "class": "biochemical",
+    "standard_types": [
+      "IC50"
+    ],
+    "_note": "Which measurement to model. Do NOT pool IC50 with Ki or Kd without checking the counts first — `census` prints them. Anything excluded here is counted and named in the curation log, so you never silently drop a whole endpoint."
+  },
+  "cascade": {
+    "require_relation": "=",
+    "require_pchembl": true,
+    "require_no_validity_comment": true,
+    "exclude_potential_duplicate": true,
+    "min_confidence_score": 8,
+    "assay_type": "B",
+    "_note": "⚠️ For an ORGANISM target on the MIC path, set min_confidence_score to null and assay_type to null. Organism-level assays score low BY DESIGN, so reusing 8 silently deletes the entire dataset. This is the single most common way to repoint this pipeline and get nothing."
+  },
+  "filter": {
+    "bao_format": null,
+    "_note": "REQUIRED. Set by you after running `census`. The pipeline refuses to build without it, because pooling assay formats stacks several different measurements under one column name."
+  },
+  "label": {
+    "column": "pchembl_value",
+    "active_cutoff": 6.0,
+    "_note": "6.0 = 1 uM. Declared in advance, never fitted to results. This goes in the EF1% caption — without a stated cutoff an enrichment figure means nothing."
+  },
+  "splits": {
+    "group_on": "inchikey",
+    "scaffold": {
+      "column": "murcko_scaffold",
+      "n_folds": 5
+    },
+    "temporal": {
+      "column": "document_year",
+      "train_fraction": 0.75
+    },
+    "_note": "Every split groups on inchikey, and a leakage guard exits non-zero if a compound lands on both sides. Format-held-out splits were REMOVED: this pipeline trains on one declared assay format and no longer re-tests that choice. Use --repeats N on the scaffold split for a reportable uncertainty — the default of 1 measures one arbitrary partition."
+  },
+  "features": {
+    "pharmacophore": {
+      "kind": "gobbi_pharm2d_topological",
+      "folded_bits": 4096
+    },
+    "_pharmacophore_note": "Gobbi 2D pharmacophore signature: pairs and triplets of donor / acceptor / aromatic / hydrophobe / acidic / basic features binned by TOPOLOGICAL distance. 39,972 raw bits folded to folded_bits. No conformer and no stereochemistry required — that is the point, since a fifth of a natural-product library carries unspecified stereocentres. Only `folded_bits` is tunable; changing it changes the collision rate, reported in featurisation_report.md. Chirality does not appear here at all: a topological pharmacophore is blind to it by construction.",
+    "blocks": "both",
+    "_blocks_note": "Which feature blocks enter the model. \"both\" (default) = pharmacophore signature + RDKit descriptors. \"pharmacophore\" = signature only. \"descriptors\" = descriptors only. Run the ablation with --blocks on train_model.py / train_classifier.py / screen.py rather than editing this; outputs are suffixed so runs cannot overwrite each other. It matters more than with a substructure fingerprint, because a molecule setting ZERO pharmacophore bits is carried entirely by its descriptors — check panel D of the characterisation figure.",
+    "drop_descriptors": [
+      "Ipc",
+      "NumUnspecifiedAtomStereoCenters"
+    ],
+    "_note": "Ipc is a product of graph-matrix eigenvalues and overflows float32 on larger molecules. NumUnspecifiedAtomStereoCenters is a CURATION artefact, not chemistry: the same molecule scores 2 drawn without stereo and 0 drawn with it, so it encodes how completely a record was annotated and lets the model learn which database a compound came from. NumAtomStereoCenters is KEPT — it counts centres that exist whether or not anyone drew them, which is a real structural property."
+  },
+  "negative_controls": {
+    "y_scramble_replicates": 5,
+    "_note": "Shuffle the labels, refit, confirm the margin collapses to ~0. OECD validation principle 4. If a scrambled model still performs, the pipeline is leaking and every other number is void."
+  },
+  "expected": {
+    "noise_floor_log_units": 0.68,
+    "_note": "Inter-laboratory agreement for IC50 (Kalliokoski 2013, PLoS ONE 8:e61007). An RMSE far below this is evidence of leakage, not skill. For MIC use ~0.3 log10, one doubling dilution."
+  }
+}

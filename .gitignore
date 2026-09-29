@@ -1,0 +1,34 @@
+# ChEMBL data — refetchable, and large
+api_cache/
+*_subset.db
+chembl_*.db
+*.tar.gz
+
+# Generated output — rebuilt by `pipeline.py build`
+#
+# NOT ignored, deliberately: census_<name>.md and curation_log.md. The subset
+# database is ignored, so those two reports are the only surviving record of
+# what ChEMBL held on the day you fetched it. A later release will not reproduce
+# them. Commit them.
+curated/
+features/
+figures/
+census_out/
+featurisation_report.md
+table2*.md
+table3_classification*.md
+table3_classification*.csv
+negative_controls*.md
+results_table2*.csv
+stereo_status*.csv
+featurisation_failures.txt
+missing_records.log
+
+# Screen output
+screen_results.csv
+screen_report.md
+
+__pycache__/
+
+# saved models — refittable, and large
+models/
